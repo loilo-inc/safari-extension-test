@@ -13,12 +13,16 @@ function sendMessageToTab(sender:MessageSender, message: any, retries = 5, inter
         } else {
             console.log('タブ送信成功', message, response);
         }
+        sendLog(`message:${message.action} response:${response.status}`);
     });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'message1') {
         console.log('message1 が届いた');
+        sendLog('message1 が届いた', {
+            tabUrl: sender?.tab?.url
+        });
         if(!sender.tab?.id){
             sendResponse({ status: 'tabid NG' });
         } else {
@@ -27,6 +31,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendMessageToTab(sender, { action: 'message2' });
     } else if (message.action === 'message3') {
         console.log('message3 が届いた');
+        sendLog('message3 が届いた', {
+            tabUrl: sender?.tab?.url
+        });
         if(!sender.tab?.id){
             sendResponse({ status: 'tabid NG' });
         } else {
@@ -36,3 +43,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
 });
+
+const LOG_ENDPOINT = "http://localhost:3001/log";
+//const LOG_ENDPOINT = "http://192.168.10.105:3001/log"; // iPadから呼ぶ場合はMacのIPにする
+async function sendLog(message: string, meta?: Record<string, unknown>) {
+    const payload = {
+        source: "background",
+        message,
+        meta,
+    };
+
+    try {
+        const res = await fetch(LOG_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            console.error("sendLog failed:", res.status, res.statusText);
+        }
+    } catch (err) {
+        console.error("sendLog error:", err);
+    }
+}
